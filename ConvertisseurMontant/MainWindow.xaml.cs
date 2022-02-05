@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Net.Http.Headers;
 using Newtonsoft.Json;
 using System.Net;
+using System.Collections.Generic;
 
 namespace ConvertisseurMontant
 {
@@ -30,6 +31,7 @@ namespace ConvertisseurMontant
         public static async Task<string> loadData(string base_id, string quote_id, string montant)
         {
             string url = $"https://api.coinpaprika.com/v1/price-converter?base_currency_id={base_id}&quote_currency_id={quote_id}&amount={montant}";
+            //string url = $"https://api.coinpaprika.com/v1/";
             Apiclient = new HttpClient();
             //Apiclient.BaseAddress = new Uri("https://api.coinpaprika.com/v1/");
             Apiclient.DefaultRequestHeaders.Accept.Clear();
@@ -43,18 +45,14 @@ namespace ConvertisseurMontant
                     string res = await response.Content.ReadAsStringAsync();
                     return res;
                 }
-                else if ( response.StatusCode == HttpStatusCode.NotFound )
-                {
-                    MessageBox.Show("Page Not Found", "error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                else if ( response.StatusCode == HttpStatusCode.BadRequest )
-                {
-                    MessageBox.Show("invalid parameters", "error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-                /*else if ( response.StatusCode == HttpStatusCode.TooManyRequests )
-                {
-                    MessageBox.Show("too many requests", "error", MessageBoxButton.OK, MessageBoxImage.Error);
-                }*/
+
+                var exeptions = new Dictionary<HttpStatusCode, string>()
+                    {
+                        { HttpStatusCode.NotFound, "Page Not Found"},
+                        { HttpStatusCode.BadRequest, "invalid parameters"},
+                        { (HttpStatusCode) 429, "too many requests"},
+                    };
+                MessageBox.Show(exeptions[response.StatusCode], "error", MessageBoxButton.OK, MessageBoxImage.Error);
                 throw new Exception(response.ReasonPhrase);
             }
         }
