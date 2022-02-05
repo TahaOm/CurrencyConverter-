@@ -6,9 +6,8 @@ using System.Text.RegularExpressions;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Net.Http.Headers;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using Newtonsoft.Json;
+using System.Net;
 
 namespace ConvertisseurMontant
 {
@@ -19,12 +18,18 @@ namespace ConvertisseurMontant
             InitializeComponent();
             MontantBinding();
         }
+
+        public void clear()
+        {
+            resultLBL.Content = "";
+            montantTB.Text = "";
+            montantTB.Focus();
+        }
         public static HttpClient Apiclient { get; set; }
 
-        public static async Task<string> loadData(string base_id, string quote_id, double montant)
+        public static async Task<string> loadData(string base_id, string quote_id, string montant)
         {
             string url = $"https://api.coinpaprika.com/v1/price-converter?base_currency_id={base_id}&quote_currency_id={quote_id}&amount={montant}";
-
             Apiclient = new HttpClient();
             //Apiclient.BaseAddress = new Uri("https://api.coinpaprika.com/v1/");
             Apiclient.DefaultRequestHeaders.Accept.Clear();
@@ -38,23 +43,20 @@ namespace ConvertisseurMontant
                     string res = await response.Content.ReadAsStringAsync();
                     return res;
                 }
-                else
+                else if ( response.StatusCode == HttpStatusCode.NotFound )
                 {
-                    throw new Exception(response.ReasonPhrase);
+                    MessageBox.Show("Page Not Found", "error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
+                else if ( response.StatusCode == HttpStatusCode.BadRequest )
+                {
+                    MessageBox.Show("invalid parameters", "error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                /*else if ( response.StatusCode == HttpStatusCode.TooManyRequests )
+                {
+                    MessageBox.Show("too many requests", "error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }*/
+                throw new Exception(response.ReasonPhrase);
             }
-        }
-
-        public class data
-        {
-            public string base_currency_id { get; set; }
-            public string base_currency_name { get; set; }
-            public string base_price_last_updated { get; set; }
-            public string quote_currency_id { get; set; }
-            public string quote_currency_name { get; set; }
-            public string quote_price_last_updated { get; set; }
-            public string amount { get; set; }
-            public string price { get; set; }
         }
         private void MontantBinding()
         {
@@ -90,13 +92,6 @@ namespace ConvertisseurMontant
 
         }
 
-        public void clear()
-        {
-            resultLBL.Content = "";
-            montantTB.Text = "";
-            montantTB.Focus();
-        }
-
         private void clearBTN_Click(object sender, RoutedEventArgs e)
         {
             clear();
@@ -104,27 +99,24 @@ namespace ConvertisseurMontant
 
         private void montantTB_TextChanged(object sender, TextCompositionEventArgs e)
         {
-            Regex regex = new Regex("[^0-9]+");
-            e.Handled = regex.IsMatch(e.Text);
+            Regex regex = new Regex(@"^[0-9.]+");
+            e.Handled = !regex.IsMatch(e.Text);
         }
 
         private async void convertBTN_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                if (montantTB.Text == null || montantTB.Text.Trim() == "")
+                if (string.IsNullOrEmpty(montantTB.Text))
                 {
                     MessageBox.Show("veuillez entrer le montant", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                     clear();
                     montantTB.Focus();
                     return;
                 }
-                else
-                {
-                    var jsonData = await loadData(fromCB.SelectedValue.ToString(), toCB.SelectedValue.ToString(), double.Parse(montantTB.Text.ToString()));
-                    var jsonString = JsonConvert.DeserializeObject<data>(jsonData);
-                    resultLBL.Content = jsonString.price.ToString();
-                }
+                string jsonData = await loadData(fromCB.SelectedValue.ToString(), toCB.SelectedValue.ToString(), montantTB.Text);
+                data jsonString = JsonConvert.DeserializeObject<data>(jsonData);
+                resultLBL.Content = jsonString.price.ToString();
             }
             catch(Exception x)
             {
